@@ -1,0 +1,36 @@
+{
+  "name": "electron-extended-webextensions",
+  "version": "0.0.1",
+  "description": "Extend the built-in functionality of Electron Web Extensions with additional features commonly used by browsers.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node build.js",
+    "lint": "standard --fix",
+    "example": "npm run build && electron example.js"
+  },
+  "files": [
+    "preloads.js",
+    "index.js",
+    "apiSpecs.js",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AgregoreWeb/electron-extended-WebExtensions.git"
+  },
+  "keywords": [
+    "electron",
+    "web",
+    "extension"
+  ],
+  "author": "rangermauve <ranger@mauve.moe> (https://mauve.moe/)",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/AgregoreWeb/electron-extended-WebExtensions/issues"
+  },
+  "homepage": "https://github.com/AgregoreWeb/electron-extended-WebExtensions#readme",
+  "devDependencies": {
+    "electron": "^18.2.0"
+  }
+}

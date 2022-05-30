@@ -100,5 +100,9 @@ dist
 # DynamoDB Local files
 .dynamodb/
 
+# No lockfiles plz!
+yarn.lock
+package-lock.json
+
 # TernJS port file
 .tern-port

@@ -1,0 +1,19 @@
+{
+	"manifest_version": 2,
+	"name": "Example Extension",
+	"version": "1.0",
+
+	"description": "Test some features of Electron Extended Extensions",
+	"browser_action": {
+		"default_title": "Example Action"
+	},
+	"background": {
+		"page": "example.html"
+	},
+	"content_scripts": [{
+		"matches": ["<all_urls>"],
+		"js": ["contentScript.js"],
+		"run_at": "document_start"
+	}],
+	"permissions": [ "<all_urls>", "contextMenus" ]
+}
