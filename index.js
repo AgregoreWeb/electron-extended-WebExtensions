@@ -511,7 +511,7 @@ class BrowserActions extends EventEmtiter {
 
   async dispatchOnClicked (extensionId, tabId) {
     const tab = await this.tabs.get(extensionId, tabId)
-    this.emit(`${extensionId}-onClicked`, { tab })
+    this.emit(`${extensionId}-onClicked`, tab)
   }
 }
 
