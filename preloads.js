@@ -56,6 +56,16 @@ const spec = {
     update: FUNCTION,
 
     onClicked: EVENT
+  },
+  webNavigation: {
+    getFrame: FUNCTION,
+    getAllFrames: FUNCTION,
+
+    onBeforeNavigate: EVENT,
+    onCommitted: EVENT,
+    onDOMContentLoaded: EVENT,
+    onCompleted: EVENT,
+    onErrorOccured: EVENT
   }
 }
 
@@ -86,6 +96,7 @@ async function run () {
     injectAPIObject('debugger', 'debugger', extensionInfo)
     injectAPIObject('browserAction', null, extensionInfo)
     injectAPIObject('contextMenus', 'contextMenus', extensionInfo)
+    injectAPIObject('webNavigation', 'webNavigation', extensionInfo)
   } else {
     // Running in frame with content script?
     const foundWorlds = await findContentScriptWorlds()
@@ -131,7 +142,8 @@ async function injectListenerAPI (type, name, permission, extensionInfo) {
     chrome[type][name] = {
       addListener (listener) {
         const listenerId = idCounter++
-        function handler (e, ...args) {
+        function handler (e, gotExtensionId, gotListenerId, ...args) {
+          if (gotExtensionId !== extensionId || gotListenerId !== listenerId) return
           listener(...args)
         }
         listenerMap.set(listener, { listenerId, handler })

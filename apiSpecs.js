@@ -47,6 +47,16 @@ const spec = {
     update: FUNCTION,
 
     onClicked: EVENT
+  },
+  webNavigation: {
+    getFrame: FUNCTION,
+    getAllFrames: FUNCTION,
+
+    onBeforeNavigate: EVENT,
+    onCommitted: EVENT,
+    onDOMContentLoaded: EVENT,
+    onCompleted: EVENT,
+    onErrorOccured: EVENT
   }
 }
 

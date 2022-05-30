@@ -15,5 +15,5 @@
 		"js": ["contentScript.js"],
 		"run_at": "document_start"
 	}],
-	"permissions": [ "<all_urls>", "contextMenus" ]
+	"permissions": [ "<all_urls>", "contextMenus", "webNavigation" ]
 }

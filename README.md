@@ -78,9 +78,9 @@ Items with a question mark might not happen or are low priority
 		- [x] Debugger
 		- [x] Context Menu
 		- [x] Browser Action
-		- [x] webRequest (doesn't work on custom protocols yet)
+		- [x] webRequest (doesn't work on custom protocols yet, built in)
 - [x] Support content scripts
-	- [x] Run content scripts (doesn't work on custom protocols yet)
+	- [x] Run content scripts (doesn't work on custom protocols yet, built in)
 	- [x] Provide extension APIs
 		- `runtime.connect` and friends
 - [x] Support BrowserActions
@@ -94,6 +94,17 @@ Items with a question mark might not happen or are low priority
 	- [x] update()
 	- [x] remove()
 	- [x] onClicked()
+	- [ ] Support url patterns for filtering (todo)
+- [x] webNavigation API
+	- [x] onBeoreNavigate
+	- [x] onCommitted
+	- [x] onDOMContentLoaded
+	- [x] onCompleted
+	- [x] onErrorOccured
+	- [x] getFrame()
+	- [x] getAllFrames()
+	- [ ] Support url patterns for filtering (todo)
+	- historyStateUpdated/createdNavigationTarget,referenceFragment will be TODO
 - [ ] Extend Tabs API:
 	- [x] Built in support has sendMessage, reload, executeScript, update, executeScript
 	- [x] get, query, create, remove
@@ -105,4 +116,5 @@ Items with a question mark might not happen or are low priority
 	- goBack/goForward?
 - [x] Support [debugger API](https://developer.chrome.com/docs/extensions/reference/debugger/) needed by WebRecorder
 - [ ] Support interacting with pages using [Custom Protocols Handlers](https://github.com/electron/electron/issues/23616)
+- [ ] Notifications API? https://www.electronjs.org/docs/latest/api/notification
 - Other APIs? Open an issue or a PR.

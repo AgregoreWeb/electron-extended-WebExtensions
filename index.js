@@ -19,6 +19,148 @@ const {
 
 const TAB_QUERY_PROPERTIES = ['url', 'active', 'status', 'title']
 
+class WebNavigation extends EventEmtiter {
+  constructor ({ tabs }) {
+    super()
+    this.tabs = tabs
+
+    // Listen to new tabs
+    this.tabs.on('created', (webContents) => this.listenTab(webContents))
+    // Listen to existing tabs
+    for (const webContents of this.tabs) {
+      this.listenTab(webContents)
+    }
+  }
+
+  listenTab (webContents) {
+    // Listen for destroy to stop listening
+    webContents.on('will-navigate', (event, url) => {
+      const details = { url }
+      this.dispatchOnBeforeNavigate(webContents, event, details)
+    })
+    webContents.on('did-start-navigation', (event, url, isInPlace, isMainFrame, frameProcessId, frameRoutingId) => {
+      const details = { url, isInPlace, isMainFrame, frameProcessId, frameRoutingId }
+      this.dispatchOnCommitted(webContents, event, details)
+    })
+    webContents.on('did-frame-finish-load', (event, isMainFrame, frameProcessId, frameRoutingId) => {
+      // Same as dom load
+      // Is it the same as onCompleted? Can't find a better event for it
+      const details = { isMainFrame, frameProcessId, frameRoutingId }
+      this.dispatchOnDOMContentLoaded(webContents, event, details)
+      this.dispatchOnCompleted(webContents, event, details)
+    })
+    webContents.on('did-fail-load', (event, code, description, url, isMainFrame, frameProcessId, frameRoutingId) => {
+      const details = { url, isMainFrame, frameProcessId, frameRoutingId }
+      const error = { code, description }
+      this.dispatchOnErrorOccured(webContents, event, details, error)
+    })
+  }
+
+  mainFrameToFrameData (frame) {
+    const frameId = frame.routingId
+    const parentFrameId = frame.parent ? frame.parent.routingId : -1
+    const url = frame.url
+
+    return {
+      frameId,
+      parentFrameId,
+      url
+    }
+  }
+
+  async getAllFrames (extensionId, { tabId } = {}) {
+    const webContents = await this.tabs.getRaw(tabId)
+    // TODO: Check for permissions?
+    const allFrames = webContents.mainFrame.framesInSubtree
+
+    return allFrames.map((frame) => this.mainFrameToFrameData(frame))
+  }
+
+  async getFrame (extensionId, { tabId, frameId } = {}) {
+    const webContents = await this.tabs.getRaw(tabId)
+
+    if (frameId) {
+      const frame = webContents.mainFrame.framesInSubtree
+        .find(({ routingId }) => routingId === frameId)
+      if (!frame) throw new Error('Frame ID not found')
+      return this.mainFrameToFrameData(frame)
+    } else {
+      return this.mainFrameToFrameData(webContents.mainFrame)
+    }
+  }
+
+  async onBeforeNavigate (extensionId, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onBeforeNavigate', handler)
+    return () => this.removeListener('onBeforeNavigate', handler)
+  }
+
+  async onCommitted (extensionId, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onCommitted', handler)
+    return () => this.removeListener('onCommitted', handler)
+  }
+
+  async onDOMContentLoaded (extensionId, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onDOMContentLoaded', handler)
+    return () => this.removeListener('onDOMContentLoaded', handler)
+  }
+
+  async onCompleted (extensionId, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onCompleted', handler)
+    return () => this.removeListener('onCompleted', handler)
+  }
+
+  async onErrorOccured (extensionId, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onErrorOccured', handler)
+    return () => this.removeListener('onErrorOccured', handler)
+  }
+
+  async dispatchOnBeforeNavigate (webContents, event, { url }) {
+    const frame = this.mainFrameToFrameData(webContents.mainFrame)
+    const tabId = webContents.id
+    const timeStamp = Date.now()
+    const details = { ...frame, url, tabId, timeStamp }
+    this.emit('onBeforeNavigate', details)
+  }
+
+  async dispatchOnCommitted (webContents, event, { url, frameRoutingId: frameId }) {
+    const tabId = webContents.id
+    const frame = await this.getFrame(null, { tabId, frameId })
+    const timeStamp = Date.now()
+    const details = { ...frame, url, tabId, timeStamp }
+    this.emit('onCommitted', details)
+  }
+
+  async dispatchOnDOMContentLoaded (webContents, event, { frameRoutingId: frameId }) {
+    const tabId = webContents.id
+    const frame = await this.getFrame(null, { tabId, frameId })
+    const timeStamp = Date.now()
+    const details = { ...frame, tabId, timeStamp }
+    this.emit('onDOMContentLoaded', details)
+  }
+
+  async dispatchOnCompleted (webContents, event, { frameRoutingId: frameId }) {
+    const tabId = webContents.id
+    const frame = await this.getFrame(null, { tabId, frameId })
+    const timeStamp = Date.now()
+    const details = { ...frame, tabId, timeStamp }
+    this.emit('onCompleted', details)
+  }
+
+  async dispatchOnErrorOccured (webContents, event, { url, frameRoutingId: frameId }, { code, description }) {
+    const tabId = webContents.id
+    const frame = await this.getFrame(null, { tabId, frameId })
+    const timeStamp = Date.now()
+    const error = `${code}: ${description}`
+    const details = { ...frame, url, tabId, timeStamp, error }
+    this.emit('onErrorOccured', details)
+  }
+}
+
 class ContextMenus extends EventEmtiter {
   constructor ({ tabs }) {
     super()
@@ -571,11 +713,13 @@ class ExtendedExtensions {
     this.debugger = new Debugger(this)
     this.browserActions = new BrowserActions(this)
     this.contextMenus = new ContextMenus(this)
+    this.webNavigation = new WebNavigation(this)
 
     this.attachAPI(this.tabs, 'tabs')
     this.attachAPI(this.debugger, 'debugger')
     this.attachAPI(this.browserActions, 'browserAction')
     this.attachAPI(this.contextMenus, 'contextMenus')
+    this.attachAPI(this.webNavigation, 'webNavigation')
 
     const handleContentsCreated = (event, webContents) => {
       if (webContents.session !== this.session) return
