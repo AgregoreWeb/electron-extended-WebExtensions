@@ -221,13 +221,13 @@ class BrowserActions extends EventEmtiter {
     this.actions = new Map()
   }
 
-  registerExtension ({ id, manifest, url }) {
+  registerExtension ({ id, manifest, url, path }) {
     if (!manifest.browser_action) return
     const manifestData = manifest.browser_action
 
     const extensionURL = url
     const extensionId = id
-    const icon = actionIcon(url, manifestData.default_icon)
+    const icon = actionIcon(path, manifestData.default_icon)
     const title = manifestData.default_title
     const popup = manifestData.default_popup
 
@@ -325,10 +325,10 @@ class BrowserActions extends EventEmtiter {
 
   async openPopup (extensionId, { tabId } = {}) {
     const action = this.get(extensionId, tabId)
-    const { popup } = action
+    const { popup, extensionURL } = action
 
     await this.tabs.create(extensionId, {
-      url: popup,
+      url: new URL(popup, extensionURL).href,
       popup: true,
       openerTabId: tabId
     })
@@ -599,8 +599,8 @@ class ExtendedExtensions {
     return extension
   }
 
-  async get(id) {
-    if (!this.extensions.has(id)) throw new Error("Extension not registered")
+  async get (id) {
+    if (!this.extensions.has(id)) throw new Error('Extension not registered')
     return this.extensions.get(id)
   }
 
@@ -622,8 +622,8 @@ class ExtendedExtensions {
     const extension = await this.get(id)
     return WebContents.getAllWebContents().find((webContents) => {
       const url = webContents.getURL()
-      if(webContents.session !== this.session) return false;
-      if(!url.startsWith(extension.url)) return false
+      if (webContents.session !== this.session) return false
+      if (!url.startsWith(extension.url)) return false
       // TODO: How do we know if it's the background page?
       // Likely the background page will be created before any other extension pages?
       return true
@@ -739,13 +739,14 @@ function webContentsToTab (webContents) {
   }
 }
 
-function actionIcon (extensionURL, iconMapOrPath) {
+function actionIcon (extensionPath, iconMapOrPath) {
   const type = typeof iconMapOrPath
   if (type === 'string') {
-    return new URL(iconMapOrPath, extensionURL).href
+    return join(extensionPath, iconMapOrPath)
   } else if (type === 'object') {
-    const imagePath = Object.keys(iconMapOrPath).sort().at(-1)
-    return new URL(imagePath, imagePath).href
+    const imageKey = Object.keys(iconMapOrPath).sort().at(-1)
+    const imagePath = iconMapOrPath[imageKey]
+    return join(extensionPath, imagePath)
   }
   return ''
 }

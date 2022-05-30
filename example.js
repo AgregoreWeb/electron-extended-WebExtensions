@@ -57,7 +57,7 @@ async function run () {
     onCreateTab: createWindow
   })
 
-  extensions.browserActions.on("change", (actions) => {
+  extensions.browserActions.on('change', (actions) => {
     console.log('new browser action list', actions)
   })
 
@@ -65,7 +65,7 @@ async function run () {
     console.log({ extension })
   })
   app.on('web-contents-created', (event, webContents) => {
-    //webContents.openDevTools()
+    webContents.openDevTools()
 
     webContents.on('context-menu', async (event, params) => {
       const items = extensions.contextMenus.getForEvent(webContents, event, params)
@@ -78,8 +78,8 @@ async function run () {
         }
       })
 
-			const backgroundPage = await extensions.getBackgroundPage(extension.id)
-			console.log({backgroundPage})
+      const backgroundPage = await extensions.getBackgroundPage(extension.id)
+      console.log({ backgroundPage })
 
       const allItems = [...items, { type: 'separator' }, ...actions]
 

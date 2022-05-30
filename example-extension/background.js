@@ -7,6 +7,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 })
 
 chrome.browserAction.onClicked.addListener((tab) => {
-  console.log("Browser Action Clicked!", tab)
-  chrome.browserAction.setPopup({popup: "https://blog.mauve.moe"})
+  console.log('Browser Action Clicked!', tab)
+  chrome.browserAction.setPopup({ popup: 'https://blog.mauve.moe' })
 })
