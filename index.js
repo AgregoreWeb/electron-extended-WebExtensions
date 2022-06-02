@@ -615,8 +615,26 @@ class Tabs extends EventEmtiter {
     return webContentsToTab(webContents)
   }
 
+  async executeScript (extensionId, tabId, { code, allFrames = false, frameId, file } = {}) {
+    if (file) throw new Error('File injection not supported')
+    const webContents = await this.getRaw(tabId)
+    if (allFrames && frameId) throw new Error('allFrames and frameId are mutually exclusive')
+    if (allFrames) {
+      return Promise.all(webContents.mainFrame.framesInSubtree.map((frame) => {
+        return frame.executeJavaScript(code)
+      }))
+    } else if (frameId) {
+      for (const frame of webContents.mainFrame.framesInSubtree) {
+        if (frame.routingId !== frameId) continue
+        return frame.executeJavaScript(code)
+      }
+    } else {
+      return webContents.mainFrame.executeScript(code)
+    }
+  }
+
   async getRaw (tabId) {
-    if (!this.tabs.has(tabId)) throw new Error('Not Found')
+    if (!this.tabs.has(tabId)) throw new Error('Tab Not Found')
     return this.tabs.get(tabId)
   }
 

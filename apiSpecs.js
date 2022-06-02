@@ -8,6 +8,9 @@ const spec = {
     query: FUNCTION,
     remove: FUNCTION,
     reload: FUNCTION,
+    // TODO: Replace this with the built in one eventually
+    executeScript: FUNCTION,
+
     onActivated: EVENT,
     onCreated: EVENT,
     onRemoved: EVENT

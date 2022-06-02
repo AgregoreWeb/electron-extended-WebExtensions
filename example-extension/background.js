@@ -2,7 +2,7 @@
 chrome.contextMenus.create({
   id: 'example',
   title: 'Hello World!',
-  contexts: ["all"]
+  contexts: ['all']
 })
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
