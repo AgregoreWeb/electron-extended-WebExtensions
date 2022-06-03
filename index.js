@@ -629,7 +629,7 @@ class Tabs extends EventEmtiter {
         return frame.executeJavaScript(code)
       }
     } else {
-      return webContents.mainFrame.executeScript(code)
+      return webContents.mainFrame.executeJavaScript(code)
     }
   }
 
