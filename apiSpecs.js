@@ -13,6 +13,7 @@ const spec = {
 
     onActivated: EVENT,
     onCreated: EVENT,
+    onUpdated: EVENT,
     onRemoved: EVENT
   },
   debugger: {

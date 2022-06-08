@@ -604,6 +604,11 @@ class Tabs extends EventEmtiter {
 
     webContents.on('destroyed', () => this.dispatchOnRemoved(webContents))
     webContents.on('focus', () => this.dispatchOnActivated(webContents))
+    webContents.on('did-start-navigation', (e, url, isInPlace, isMainFrame) => {
+      // Only listen for navigation changes in the main frame
+      if (!isMainFrame && isInPlace) return
+      this.dispatchOnUpdated(webContents)
+    })
     this.dispatchOnCreated(webContents)
   }
 
@@ -688,6 +693,12 @@ class Tabs extends EventEmtiter {
     return () => this.removeListener('onRemoved', handler)
   }
 
+  onUpdated (extensionId, handler) {
+    // TODO: Add support for filters
+    this.on('onUpdated', handler)
+    return () => this.removeListener('onUpdated')
+  }
+
   async dispatchOnActivated ({ id: tabId }) {
     this.emit('onActivated', { tabId })
   }
@@ -700,6 +711,17 @@ class Tabs extends EventEmtiter {
 
   async dispatchOnRemoved ({ id: tabId }) {
     this.emit('onRemoved', { tabId, removeInfo: {} })
+  }
+
+  dispatchOnUpdated (webContents, property = 'url') {
+    // Only URL changes supported for now
+    const tabId = webContents.id
+    const tab = webContentsToTab(webContents)
+    const changeInfo = {}
+    if (property === 'url') {
+      changeInfo.url = webContents.getURL()
+    }
+    this.emit('onUpdated', tabId, changeInfo, tab)
   }
 }
 

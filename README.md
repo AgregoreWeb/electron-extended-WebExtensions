@@ -106,11 +106,11 @@ Items with a question mark might not happen or are low priority
 	- [ ] Support url patterns for filtering (todo)
 	- historyStateUpdated/createdNavigationTarget,referenceFragment will be TODO
 - [ ] Extend Tabs API:
-	- [x] Built in support has sendMessage, reload, executeScript, update, executeScript
+	- [x] Built in support has sendMessage, reload, executeScript, update
 	- [x] get, query, create, remove
-	- [x] onActivated/onCreated/onRemoved/etc?
+	- [x] onActivated/onCreated/onRemoved/onUpdated
+	- [x] executeScript got overrided in order to support custom protocols (for Agregore)
 	- captureTab?
-	- connect?
 	- insertCSS / removeCSS?
 	- getCurrent?
 	- goBack/goForward?
