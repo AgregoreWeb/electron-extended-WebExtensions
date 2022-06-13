@@ -5,6 +5,7 @@ const spec = {
   tabs: {
     create: FUNCTION,
     get: FUNCTION,
+    getCurrent: FUNCTION,
     query: FUNCTION,
     remove: FUNCTION,
     reload: FUNCTION,
@@ -37,6 +38,12 @@ const spec = {
 
     setBadgeText: FUNCTION,
     getBadgeText: FUNCTION,
+
+    setBadgeBackgroundColor: FUNCTION,
+    getBadgeBackgroundColor: FUNCTION,
+
+    setBadgeTextColor: FUNCTION,
+    getBadgeTextColor: FUNCTION,
 
     enable: FUNCTION,
     disable: FUNCTION,

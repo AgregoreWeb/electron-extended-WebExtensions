@@ -1,7 +1,6 @@
-/* global chrome */
-const ISOLATED_WORLD_ID_EXTENSIONS = 1 << 20
-
-const { webFrame, ipcRenderer } = require('electron')
+const { webFrame, ipcRenderer, contextBridge } = require('electron')
+const API_NAME = '$$chrome'
+const FAKE_API_NAME = `___${API_NAME}`
 
 /*
 Injected from apiSpecs.js
@@ -16,20 +15,31 @@ const { FUNCTION, EVENT, makeEvent, spec } = require('./apiSpecs')
 run()
 
 async function run () {
-  if (chrome.extension) {
-    // Running in background page
-    const extensionInfo = await extensionInfoFromChrome(chrome)
-    console.log({ extensionInfo })
+  const isExtensionPage = window.location.href.startsWith('chrome-extension://')
+  // Running in background page or popup
+  if (!isExtensionPage) return
+  const extensionInfo = await getMainWorld()
 
-    injectAPIObject('tabs', null, extensionInfo)
-    injectAPIObject('debugger', 'debugger', extensionInfo)
-    injectAPIObject('browserAction', null, extensionInfo)
-    injectAPIObject('contextMenus', 'contextMenus', extensionInfo)
-    injectAPIObject('webNavigation', 'webNavigation', extensionInfo)
-  } else {
-    // Running in frame with content script?
-    const foundWorlds = await findContentScriptWorlds()
-    console.log({ chrome, foundWorlds })
+  const rawAPI = {}
+
+  let isContextIsolated = true
+  try {
+    // TODO: Account for this being invoked more than once?
+    await contextBridge.exposeInMainWorld(FAKE_API_NAME, '')
+  } catch {
+    isContextIsolated = false
+  }
+
+  const toInjectOver = isContextIsolated ? rawAPI : extensionInfo.chrome
+
+  injectAPIObject(toInjectOver, 'tabs', null, extensionInfo)
+  injectAPIObject(toInjectOver, 'debugger', 'debugger', extensionInfo)
+  injectAPIObject(toInjectOver, 'browserAction', null, extensionInfo)
+  injectAPIObject(toInjectOver, 'contextMenus', 'contextMenus', extensionInfo)
+  injectAPIObject(toInjectOver, 'webNavigation', 'webNavigation', extensionInfo)
+
+  if (isContextIsolated) {
+    contextBridge.exposeInMainWorld(API_NAME, rawAPI)
   }
 }
 
@@ -43,32 +53,36 @@ function hasPermission (permission, manifest) {
   return manifest.permissions.includes(permission)
 }
 
-async function injectAPIObject (type, permission, extensionInfo) {
+async function injectAPIObject (rawAPI, type, permission, extensionInfo) {
   for (const [name, apiKind] of Object.entries(spec[type])) {
     if (apiKind === FUNCTION) {
-      injectFunctionAPI(type, name, permission, extensionInfo)
+      injectFunctionAPI(rawAPI, type, name, permission, extensionInfo)
     } else if (apiKind === EVENT) {
-      injectListenerAPI(type, name, permission, extensionInfo)
+      injectListenerAPI(rawAPI, type, name, permission, extensionInfo)
     } else {
       throw new TypeError(`Unknown API Kind: ${apiKind}`)
     }
   }
 }
 
-async function injectListenerAPI (type, name, permission, extensionInfo) {
+async function injectListenerAPI (rawAPI, type, name, permission, extensionInfo) {
   // Set up listener map for name (rawListener => intermediatelistener
   // Set up object for addListener, removeListener, hasListener
 
   const event = makeEvent(type, name)
   const listenerMap = new Map()
 
-  const extensionId = extensionInfo.id
+  const { id: extensionId } = extensionInfo
 
-  ensureExists(type, extensionInfo.chrome)
+  injectProxy([type, name, 'addListener'])
+  injectProxy([type, name, 'removeListener'])
+  injectProxy([type, name, 'hasListener'])
+
+  ensureExists(type, rawAPI)
   if (hasPermission(permission, extensionInfo.manifest)) {
     // Wire up listeners
     let idCounter = 1
-    chrome[type][name] = {
+    rawAPI[type][name] = {
       addListener (listener) {
         const listenerId = idCounter++
         function handler (e, gotExtensionId, gotListenerId, ...args) {
@@ -94,7 +108,7 @@ async function injectListenerAPI (type, name, permission, extensionInfo) {
     }
   } else {
     // No-op these listeners
-    chrome[type][name] = {
+    rawAPI[type][name] = {
       addListener () {
         console.error('Attempted to add listener without permission')
       },
@@ -104,24 +118,27 @@ async function injectListenerAPI (type, name, permission, extensionInfo) {
   }
 }
 
-async function injectFunctionAPI (type, name, permission, extensionInfo) {
+async function injectFunctionAPI (rawAPI, type, name, permission, extensionInfo) {
   const event = makeEvent(type, name)
-  const { chrome, manifest, id } = extensionInfo
+  const { manifest, id } = extensionInfo
 
-  ensureExists(type, chrome)
+  ensureExists(type, rawAPI)
+
+  injectProxy([type, name])
 
   if (!hasPermission(permission, manifest)) {
-    chrome[type][name] = async () => {
+    rawAPI[type][name] = async () => {
       throw new Error('Permission denied')
     }
   } else {
-    chrome[type][name] = async (...args) => {
+    rawAPI[type][name] = async (...args) => {
       const cb = args.at(-1)
       if (typeof cb === 'function') {
         const argsNoCB = args.slice(0, -1)
         return ipcRenderer.invoke(event, id, ...argsNoCB)
           .then(cb, (e) => {
-            chrome.runtime.lastError = e
+            console.error(`Error invoking chrome.${type}.${name}`, e)
+            rawAPI.runtime.lastError = e
           })
       } else {
         return ipcRenderer.invoke(event, id, ...args)
@@ -130,25 +147,22 @@ async function injectFunctionAPI (type, name, permission, extensionInfo) {
   }
 }
 
-async function findContentScriptWorlds () {
-  const foundWorlds = []
-  let n = 0
-  while (true) {
-    const worldId = ISOLATED_WORLD_ID_EXTENSIONS + n
-    const gotChrome = await webFrame.executeJavaScriptInIsolatedWorld(worldId, [{ code: 'window.chrome' }])
-    const extension = gotChrome?.extension
-    if (extension) {
-      const extensionInfo = await extensionInfoFromChrome(gotChrome)
-      foundWorlds.push({
-        worldId,
-        ...extensionInfo
-      })
-    } else {
-      break
-    }
-    n++
+async function getMainWorld () {
+  const gotChrome = await webFrame.executeJavaScript('window.chrome')
+  return await extensionInfoFromChrome(gotChrome)
+}
+
+async function injectProxy (segments) {
+  let ensureScript = ''
+  for (let parentIndex = 0; parentIndex < segments.length - 1; parentIndex++) {
+    const parentSegments = segments.slice(0, parentIndex + 1).join('.')
+    ensureScript += `if(!window.chrome.${parentSegments}) window.chrome.${parentSegments} = {}\n`
   }
-  return foundWorlds
+  const path = segments.join('.')
+  await webFrame.executeJavaScript(`
+${ensureScript}
+window.chrome.${path} = (...args) => ${API_NAME}.${path}(...args)
+`)
 }
 
 async function extensionInfoFromChrome (chrome) {

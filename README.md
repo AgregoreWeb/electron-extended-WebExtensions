@@ -83,6 +83,7 @@ Items with a question mark might not happen or are low priority
 	- [x] Run content scripts (doesn't work on custom protocols yet, built in)
 	- [x] Provide extension APIs
 		- `runtime.connect` and friends
+- [ ] Support popup APIs
 - [x] Support BrowserActions
 	- [x] Ability to specify BrowserAction in manifest
 	- [x] List browser actions from electron app, listen for triggers

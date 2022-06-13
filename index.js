@@ -19,6 +19,8 @@ const {
 
 const TAB_QUERY_PROPERTIES = ['url', 'active', 'status', 'title']
 
+const FORBIDDEN_PROTOCOLS = ['chrome-extension:', 'devtools:']
+
 class WebNavigation extends EventEmtiter {
   constructor ({ tabs }) {
     super()
@@ -68,7 +70,9 @@ class WebNavigation extends EventEmtiter {
     }
   }
 
-  async getAllFrames (extensionId, { tabId } = {}) {
+  /* Invoked by extension APIs */
+
+  async getAllFrames ({ extensionId } = {}, { tabId } = {}) {
     const webContents = await this.tabs.getRaw(tabId)
     // TODO: Check for permissions?
     const allFrames = webContents.mainFrame.framesInSubtree
@@ -76,7 +80,7 @@ class WebNavigation extends EventEmtiter {
     return allFrames.map((frame) => this.mainFrameToFrameData(frame))
   }
 
-  async getFrame (extensionId, { tabId, frameId } = {}) {
+  async getFrame (invoker, { tabId, frameId } = {}) {
     const webContents = await this.tabs.getRaw(tabId)
 
     if (frameId) {
@@ -89,31 +93,31 @@ class WebNavigation extends EventEmtiter {
     }
   }
 
-  async onBeforeNavigate (extensionId, handler, filter = {}) {
+  async onBeforeNavigate ({ extensionId } = {}, handler, filter = {}) {
     // TODO: Filter by URLs
     this.on('onBeforeNavigate', handler)
     return () => this.removeListener('onBeforeNavigate', handler)
   }
 
-  async onCommitted (extensionId, handler, filter = {}) {
+  async onCommitted ({ extensionId } = {}, handler, filter = {}) {
     // TODO: Filter by URLs
     this.on('onCommitted', handler)
     return () => this.removeListener('onCommitted', handler)
   }
 
-  async onDOMContentLoaded (extensionId, handler, filter = {}) {
+  async onDOMContentLoaded ({ extensionId } = {}, handler, filter = {}) {
     // TODO: Filter by URLs
     this.on('onDOMContentLoaded', handler)
     return () => this.removeListener('onDOMContentLoaded', handler)
   }
 
-  async onCompleted (extensionId, handler, filter = {}) {
+  async onCompleted ({ extensionId } = {}, handler, filter = {}) {
     // TODO: Filter by URLs
     this.on('onCompleted', handler)
     return () => this.removeListener('onCompleted', handler)
   }
 
-  async onErrorOccured (extensionId, handler, filter = {}) {
+  async onErrorOccured ({ extensionId } = {}, handler, filter = {}) {
     // TODO: Filter by URLs
     this.on('onErrorOccured', handler)
     return () => this.removeListener('onErrorOccured', handler)
@@ -184,6 +188,7 @@ class ContextMenus extends EventEmtiter {
   }
 
   /* Invoked by application */
+
   getForEvent (webContents, event, params, { isBrowserAction = false, isLauncher = false } = {}) {
     const {
       linkURL,
@@ -235,7 +240,7 @@ class ContextMenus extends EventEmtiter {
   }
 
   click (extensionId, menuItemId, onClickData = {}, webContents) {
-    this.dispatchOnClicked(extensionId, { ...onClickData, menuItemId }, webContents)
+    this.dispatchOnClicked({ extensionId }, { ...onClickData, menuItemId }, webContents)
   }
 
   getForContext (context) {
@@ -255,7 +260,7 @@ class ContextMenus extends EventEmtiter {
   }
 
   /* Invoked by extension APIs */
-  async create (extensionId, createProperties = {}) {
+  async create ({ extensionId } = {}, createProperties = {}) {
     const {
       id,
       type = 'normal',
@@ -284,16 +289,16 @@ class ContextMenus extends EventEmtiter {
     return id
   }
 
-  async remove (extensionId, menuItemId) {
+  async remove ({ extensionId } = {}, menuItemId) {
     if (!this.items.has(extensionId)) return
     this.items.get(extensionId).delete(menuItemId)
   }
 
-  async removeAll (extensionId) {
+  async removeAll ({ extensionId } = {}) {
     this.items.delete(extensionId)
   }
 
-  async update (extensionId, menuItemId, updateProperties) {
+  async update ({ extensionId } = {}, menuItemId, updateProperties) {
     const {
       type,
       title,
@@ -325,12 +330,12 @@ class ContextMenus extends EventEmtiter {
     extensionItems.set(menuItemId, { ...existing, ...finalUpdates })
   }
 
-  async onClicked (extensionId, handler) {
+  async onClicked ({ extensionId } = {}, handler) {
     this.on(`${extensionId}-onClicked`, handler)
     return () => this.removeListener(`${extensionId}-onClicked`, handler)
   }
 
-  dispatchOnClicked (extensionId, onClickData, webContents) {
+  dispatchOnClicked ({ extensionId } = {}, onClickData, webContents) {
     const tab = webContents ? webContentsToTab(webContents) : null
     this.emit(`${extensionId}-onClicked`, onClickData, tab)
   }
@@ -380,6 +385,8 @@ class BrowserActions extends EventEmtiter {
       title,
       popup,
       badge: '',
+      badgeBackground: '',
+      badgeText: '',
       icon,
       tabs: {}
     })
@@ -393,9 +400,9 @@ class BrowserActions extends EventEmtiter {
   async click (extensionId, tabId) {
     const action = await this.get(extensionId, tabId)
     if (action.popup) {
-      return this.openPopup(extensionId, { tabId })
+      return this.openPopup({ extensionId }, { tabId })
     } else {
-      return this.dispatchOnClicked(extensionId, tabId)
+      return this.dispatchOnClicked({ extensionId }, tabId)
     }
   }
 
@@ -443,60 +450,76 @@ class BrowserActions extends EventEmtiter {
     }
   }
 
-  async getTitle (extensionId, { tabId } = {}) {
+  async getTitle ({ extensionId } = {}, { tabId } = {}) {
     return this.getProperty(extensionId, 'title', tabId)
   }
 
-  async setTitle (extensionId, { title, tabId } = {}) {
+  async setTitle ({ extensionId } = {}, { title, tabId } = {}) {
     return this.update(extensionId, { title }, tabId)
   }
 
-  async setIcon (extensionId, { imageData, path, tabId } = {}) {
+  async setIcon ({ extensionId } = {}, { imageData, path, tabId } = {}) {
     const extensionURL = await this.getProperty(extensionId, 'extensionURL', tabId)
     const icon = actionIcon(extensionURL, path || imageData)
     return this.update(extensionId, { icon }, tabId)
   }
 
-  async getPopup (extensionId, { tabId } = {}) {
+  async getPopup ({ extensionId } = {}, { tabId } = {}) {
     return this.getProperty(extensionId, 'popup', tabId)
   }
 
-  async setPopup (extensionId, { popup, tabId } = {}) {
+  async setPopup ({ extensionId } = {}, { popup, tabId } = {}) {
     return this.update(extensionId, { popup }, tabId)
   }
 
-  async openPopup (extensionId, { tabId } = {}) {
+  async openPopup ({ extensionId } = {}, { tabId } = {}) {
     const action = this.get(extensionId, tabId)
     const { popup, extensionURL } = action
 
-    await this.tabs.create(extensionId, {
+    await this.tabs.create({ extensionId }, {
       url: new URL(popup, extensionURL).href,
       popup: true,
       openerTabId: tabId
     })
   }
 
-  async getBadgeText (extensionId, { tabId } = {}) {
+  async getBadgeText ({ extensionId } = {}, { tabId } = {}) {
     return this.getProperty(extensionId, 'badge', tabId)
   }
 
-  async setBadgeText (extensionId, { text, tabId } = {}) {
+  async setBadgeText ({ extensionId } = {}, { text, tabId } = {}) {
     return this.update(extensionId, { badge: text }, tabId)
   }
 
-  async disable (extensionId, { tabId } = {}) {
+  async setBadgeBackgroudColor ({ extensionId } = {}, { color, tabId } = {}) {
+    return this.update(extensionId, { badgeBackground: color }, tabId)
+  }
+
+  async getBadgeBackgroundColor ({ extensionId } = {}, { tabId } = {}) {
+    return this.getProperty(extensionId, 'badgeBackground', tabId)
+  }
+
+  async setBadgeTextColor ({ extensionId } = {}, { color, tabId } = {}) {
+    return this.update(extensionId, { badgeText: color }, tabId)
+  }
+
+  async getBadgeTextColor ({ extensionId } = {}, { tabId } = {}) {
+    return this.getProperty(extensionId, 'badgeColor', tabId)
+  }
+
+  async disable ({ extensionId } = {}, { tabId } = {}) {
     return this.update(extensionId, { enabled: false }, tabId)
   }
 
-  async enable (extensionId, { tabId } = {}) {
+  async enable ({ extensionId } = {}, { tabId } = {}) {
     return this.update(extensionId, { enabled: true }, tabId)
   }
 
-  async isEnabled (extensionId, { tabId } = {}) {
+  async isEnabled ({ extensionId } = {}, { tabId } = {}) {
     return this.getProperty(extensionId, 'enabled', tabId)
   }
 
-  async onClicked (extensionId, handler) {
+  async onClicked ({ extensionId } = {}, handler) {
     this.on(`${extensionId}-onClicked`, handler)
     return () => this.removeListener(`${extensionId}-onClicked`, handler)
   }
@@ -509,8 +532,8 @@ class BrowserActions extends EventEmtiter {
     this.emit('change-tab', this.list(tabId))
   }
 
-  async dispatchOnClicked (extensionId, tabId) {
-    const tab = await this.tabs.get(extensionId, tabId)
+  async dispatchOnClicked ({ extensionId } = {}, tabId) {
+    const tab = await this.tabs.get({ extensionId }, tabId)
     this.emit(`${extensionId}-onClicked`, tab)
   }
 }
@@ -522,15 +545,15 @@ class Debugger extends EventEmtiter {
     this.session = session
   }
 
-  async attach (extensionId, target, requiredVersion = '1.1') {
+  async attach ({ extensionId } = {}, { tabId }, requiredVersion = '1.1') {
     // This will throw if it's not a tracked tab
-    const webContents = await this.tabs.getRaw(target)
+    const webContents = await this.tabs.getRaw(tabId)
 
     const onDetach = (event, reason) => {
-      this.dispatchOnDetach(extensionId, target, reason)
+      this.dispatchOnDetach({ extensionId }, { tabId }, reason)
     }
     const onEvent = (event, method, ...args) => {
-      this.dispatchOnEvent(extensionId, target, method, ...args)
+      this.dispatchOnEvent({ extensionId }, { tabId }, method, ...args)
     }
 
     webContents.debugger.on('detach', onDetach)
@@ -546,14 +569,14 @@ class Debugger extends EventEmtiter {
     webContents.debugger.once('detach', cleanup)
   }
 
-  async detach (extensionId, target) {
+  async detach ({ extensionId } = {}, { tabId }) {
     // This will throw if it's not a tracked tab
-    const webContents = await this.tabs.getRaw(target)
+    const webContents = await this.tabs.getRaw(tabId)
 
     webContents.debugger.detach()
   }
 
-  async getTargets (extensionId) {
+  async getTargets ({ extensionId } = {}) {
     return [...this.tabs].map((webContents) => {
       const attached = webContents.debugger.isAttached()
       const tabId = webContents.id
@@ -566,27 +589,29 @@ class Debugger extends EventEmtiter {
     })
   }
 
-  async sendCommand (extensionId, target, method, ...args) {
-    const webContents = await this.tabs.getRaw(target)
+  async sendCommand ({ extensionId } = {}, { tabId }, method, ...args) {
+    const webContents = await this.tabs.getRaw(tabId)
 
-    return webContents.debugger.sendCommand(method, ...args)
+    const result = await webContents.debugger.sendCommand(method, ...args)
+
+    return result
   }
 
-  onAttach (extensionId, handler) {
-    this.on(`${extensionId}-onAttach`, handler)
-    return () => this.removeListener(`${extensionId}-onAttach`, handler)
-  }
-
-  onDetach (extensionId, handler) {
+  onDetach ({ extensionId } = {}, handler) {
     this.on(`${extensionId}-onDetach`, handler)
     return () => this.removeListener(`${extensionId}-onDetach`, handler)
   }
 
-  async dispatchOnDetach (extensionId, target, reason) {
+  onEvent ({ extensionId } = {}, handler) {
+    this.on(`${extensionId}-onEvent`, handler)
+    return () => this.removeListener(`${extensionId}-onEvent`, handler)
+  }
+
+  async dispatchOnDetach ({ extensionId } = {}, target, reason) {
     this.emit(`${extensionId}-onDetach`, target, reason)
   }
 
-  async dispatchOnEvent (extensionId, target, method, ...args) {
+  async dispatchOnEvent ({ extensionId } = {}, target, method, ...args) {
     this.emit(`${extensionId}-onEvent`, target, method, ...args)
   }
 }
@@ -596,14 +621,26 @@ class Tabs extends EventEmtiter {
     super()
     this.tabs = new Map()
     this.extensions = extensions
+    this.lastFocused = null
   }
 
   /* Invoked by application */
   async trackTab (webContents) {
-    this.tabs.set(webContents.id, webContents)
+    const tabId = webContents.id
+    this.tabs.set(tabId, webContents)
 
-    webContents.on('destroyed', () => this.dispatchOnRemoved(webContents))
-    webContents.on('focus', () => this.dispatchOnActivated(webContents))
+    webContents.on('destroyed', () => {
+      this.tabs.delete(tabId)
+      this.dispatchOnRemoved(webContents)
+    })
+    webContents.on('focus', () => {
+      const currentURL = webContents.getURL()
+      if (!currentURL) return
+      const { protocol } = new URL(currentURL)
+      // Don't track focus for extension popups or devtools
+      if (FORBIDDEN_PROTOCOLS.includes(protocol)) return
+      this.dispatchOnActivated(webContents)
+    })
     webContents.on('did-start-navigation', (e, url, isInPlace, isMainFrame) => {
       // Only listen for navigation changes in the main frame
       if (!isMainFrame && isInPlace) return
@@ -612,15 +649,20 @@ class Tabs extends EventEmtiter {
     this.dispatchOnCreated(webContents)
   }
 
+  async getRaw (tabId) {
+    if (!this.tabs.has(tabId)) throw new Error('Tab Not Found')
+    return this.tabs.get(tabId)
+  }
+
   /* Invoked by extension APIs */
-  async create (extensionId, options = {}) {
+  async create ({ extensionId } = {}, options = {}) {
     // TODO: check permissions for extension ID
     const webContents = await this.extensions.onCreateTab(options)
     this.trackTab(webContents)
     return webContentsToTab(webContents)
   }
 
-  async executeScript (extensionId, tabId, { code, allFrames = false, frameId, file } = {}) {
+  async executeScript ({ extensionId } = {}, tabId, { code, allFrames = false, frameId, file } = {}) {
     if (file) throw new Error('File injection not supported')
     const webContents = await this.getRaw(tabId)
     if (allFrames && frameId) throw new Error('allFrames and frameId are mutually exclusive')
@@ -638,39 +680,41 @@ class Tabs extends EventEmtiter {
     }
   }
 
-  async getRaw (tabId) {
-    if (!this.tabs.has(tabId)) throw new Error('Tab Not Found')
-    return this.tabs.get(tabId)
-  }
-
-  async get (extensionId, tabId) {
+  async get ({ extensionId } = {}, tabId) {
     const webContents = await this.getRaw(tabId)
     return webContentsToTab(webContents)
   }
 
-  async query (extensionId, query) {
+  async getCurrent ({ extensionId, sender } = {}) {
+    return webContentsToTab(sender)
+  }
+
+  async query ({ extensionId } = {}, query) {
     return [...this.tabs.values()].filter((webContents) => {
       const tab = webContentsToTab(webContents)
-      // TODO: Suppor match patterns for tab URLs
+      if (tab.id === this.lastFocused) {
+        tab.active = true
+      }
+      // TODO: Support match patterns for tab URLs
       // Use this for pattern matching: https://github.com/kong0107/url-match-pattern
       for (const key of TAB_QUERY_PROPERTIES) {
         if (key in query && tab[key] !== query[key]) return false
       }
       return true
-    })
+    }).map(webContentsToTab)
   }
 
-  async remove (extensionId, tabIds) {
+  async remove ({ extensionId } = {}, tabIds) {
     for (const tabId of [].concat(tabIds)) {
       if (!this.tabs.has(tabId)) continue
-      const webContents = this.tabs.get(tabId)
+      const webContents = this.tabs.getRaw(tabId)
       webContents.destroy()
     }
   }
 
-  async reload (extensionId, tabId) {
+  async reload ({ extensionId } = {}, tabId) {
     if (!this.tabs.has(tabId)) throw new Error('Not Found')
-    const webContents = this.tabs.get(tabId)
+    const webContents = this.tabs.getRaw(tabId)
     webContents.reload()
   }
 
@@ -678,28 +722,29 @@ class Tabs extends EventEmtiter {
     return this.tabs.values()
   }
 
-  onActivated (extensionId, handler) {
+  onActivated ({ extensionId } = {}, handler) {
     this.on('onActivated', handler)
     return () => this.removeListener('onActivated', handler)
   }
 
-  onCreated (extensionId, handler) {
+  onCreated ({ extensionId } = {}, handler) {
     this.on('onCreated', handler)
     return () => this.removeListener('onCreated', handler)
   }
 
-  onRemoved (extensionId, handler) {
+  onRemoved ({ extensionId } = {}, handler) {
     this.on('onRemoved', handler)
     return () => this.removeListener('onRemoved', handler)
   }
 
-  onUpdated (extensionId, handler) {
+  onUpdated ({ extensionId } = {}, handler) {
     // TODO: Add support for filters
     this.on('onUpdated', handler)
     return () => this.removeListener('onUpdated')
   }
 
   async dispatchOnActivated ({ id: tabId }) {
+    this.lastFocused = tabId
     this.emit('onActivated', { tabId })
   }
 
@@ -840,7 +885,7 @@ class ExtendedExtensions {
         e.reply(event, extensionId, listenerId, ...args)
       }
 
-      const removeListener = await implementation[name](extensionId, handler)
+      const removeListener = await implementation[name]({ extensionId, sender }, handler)
       listeners.set(key, cleanup)
 
       sender.once('did-navigate', navigateListener)
@@ -887,7 +932,7 @@ class ExtendedExtensions {
       const { sender } = e
       // Only respond to sessions we're listening on
       if (sender.session !== this.session) return
-      return implementation[name](extensionId, ...args)
+      return implementation[name]({ extensionId, sender }, ...args)
     }
     // TODO: Register handlers globally and have extensions instances attach/detach from there
     ipcMain.handle(event, onInvoke)
