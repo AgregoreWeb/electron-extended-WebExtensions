@@ -386,7 +386,7 @@ class BrowserActions extends EventEmtiter {
       popup,
       badge: '',
       badgeBackground: '',
-      badgeText: '',
+      badgeColor: '',
       icon,
       tabs: {}
     })
@@ -436,16 +436,22 @@ class BrowserActions extends EventEmtiter {
       })
   }
 
-  update (extensionId, updates, tabId) {
+  update (extensionId, name, value, tabId) {
     const action = this.get(extensionId)
     if (tabId) {
       const existing = action.tabs[tabId] || {}
-      const updated = { ...existing, ...updates }
+      if (existing[name] === value) return
+
+      const updated = { ...existing, [name]: value }
       action.tabs[tabId] = updated
+
       this.dispatchOnChangeTab(tabId)
     } else {
-      const updated = { ...action, ...updates }
+      if (action[name] === value) return
+
+      const updated = { ...action, [name]: value }
       this.actions.set(extensionId, updated)
+
       this.dispatchOnChange()
     }
   }
@@ -455,13 +461,13 @@ class BrowserActions extends EventEmtiter {
   }
 
   async setTitle ({ extensionId } = {}, { title, tabId } = {}) {
-    return this.update(extensionId, { title }, tabId)
+    return this.update(extensionId, 'title', title, tabId)
   }
 
   async setIcon ({ extensionId } = {}, { imageData, path, tabId } = {}) {
     const extensionURL = await this.getProperty(extensionId, 'extensionURL', tabId)
     const icon = actionIcon(extensionURL, path || imageData)
-    return this.update(extensionId, { icon }, tabId)
+    return this.update(extensionId, 'icon', icon, tabId)
   }
 
   async getPopup ({ extensionId } = {}, { tabId } = {}) {
@@ -469,7 +475,7 @@ class BrowserActions extends EventEmtiter {
   }
 
   async setPopup ({ extensionId } = {}, { popup, tabId } = {}) {
-    return this.update(extensionId, { popup }, tabId)
+    return this.update(extensionId, 'popup', popup, tabId)
   }
 
   async openPopup ({ extensionId } = {}, { tabId } = {}) {
@@ -488,11 +494,11 @@ class BrowserActions extends EventEmtiter {
   }
 
   async setBadgeText ({ extensionId } = {}, { text, tabId } = {}) {
-    return this.update(extensionId, { badge: text }, tabId)
+    return this.update(extensionId, 'badge', text, tabId)
   }
 
-  async setBadgeBackgroudColor ({ extensionId } = {}, { color, tabId } = {}) {
-    return this.update(extensionId, { badgeBackground: color }, tabId)
+  async setBadgeBackgroundColor ({ extensionId } = {}, { color, tabId } = {}) {
+    return this.update(extensionId, 'badgeBackground', color, tabId)
   }
 
   async getBadgeBackgroundColor ({ extensionId } = {}, { tabId } = {}) {
@@ -500,7 +506,7 @@ class BrowserActions extends EventEmtiter {
   }
 
   async setBadgeTextColor ({ extensionId } = {}, { color, tabId } = {}) {
-    return this.update(extensionId, { badgeText: color }, tabId)
+    return this.update(extensionId, 'badgeColor', color, tabId)
   }
 
   async getBadgeTextColor ({ extensionId } = {}, { tabId } = {}) {
@@ -508,11 +514,11 @@ class BrowserActions extends EventEmtiter {
   }
 
   async disable ({ extensionId } = {}, { tabId } = {}) {
-    return this.update(extensionId, { enabled: false }, tabId)
+    return this.update(extensionId, 'enabled', false, tabId)
   }
 
   async enable ({ extensionId } = {}, { tabId } = {}) {
-    return this.update(extensionId, { enabled: true }, tabId)
+    return this.update(extensionId, 'enabled', true, tabId)
   }
 
   async isEnabled ({ extensionId } = {}, { tabId } = {}) {
@@ -529,7 +535,7 @@ class BrowserActions extends EventEmtiter {
   }
 
   dispatchOnChangeTab (tabId) {
-    this.emit('change-tab', this.list(tabId))
+    this.emit('change-tab', tabId, this.list(tabId))
   }
 
   async dispatchOnClicked ({ extensionId } = {}, tabId) {
