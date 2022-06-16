@@ -779,6 +779,11 @@ class Tabs extends EventEmtiter {
     return () => this.removeListener('onUpdated')
   }
 
+  onFocusChanged ({ extensionId } = {}, handler) {
+    this.on('onFocusChanged', handler)
+    return () => this.removeListener('onFocusChanged')
+  }
+
   async dispatchOnActivated ({ id: tabId }) {
     this.lastFocused = tabId
     this.emit('onActivated', { tabId })
