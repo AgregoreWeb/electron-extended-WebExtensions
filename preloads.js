@@ -8,6 +8,7 @@ Injected from apiSpecs.js
 
 const FUNCTION = 'function'
 const EVENT = 'event'
+const SETTING = 'setting'
 
 const spec = {
   tabs: {
@@ -21,6 +22,17 @@ const spec = {
     executeScript: FUNCTION,
 
     onActivated: EVENT,
+    onCreated: EVENT,
+    onUpdated: EVENT,
+    onRemoved: EVENT
+  },
+  windows: {
+    create: FUNCTION,
+    get: FUNCTION,
+    update: FUNCTION,
+    remove: FUNCTION,
+
+    onFocusChanged: EVENT,
     onCreated: EVENT,
     onUpdated: EVENT,
     onRemoved: EVENT
@@ -71,11 +83,21 @@ const spec = {
     getFrame: FUNCTION,
     getAllFrames: FUNCTION,
 
+    onCreatedNavigationTarget: EVENT,
     onBeforeNavigate: EVENT,
     onCommitted: EVENT,
     onDOMContentLoaded: EVENT,
     onCompleted: EVENT,
     onErrorOccured: EVENT
+  },
+  privacy: {
+    network: {
+      networkPredictionEnabled: SETTING,
+      webRTCIPHandlingPolicy: SETTING
+    },
+    websites: {
+      hyperlinkAuditingEnabled: SETTING
+    }
   }
 }
 
@@ -110,10 +132,12 @@ async function run () {
   const toInjectOver = isContextIsolated ? rawAPI : extensionInfo.chrome
 
   injectAPIObject(toInjectOver, 'tabs', null, extensionInfo)
+  injectAPIObject(toInjectOver, 'windows', null, extensionInfo)
   injectAPIObject(toInjectOver, 'debugger', 'debugger', extensionInfo)
   injectAPIObject(toInjectOver, 'browserAction', null, extensionInfo)
   injectAPIObject(toInjectOver, 'contextMenus', 'contextMenus', extensionInfo)
   injectAPIObject(toInjectOver, 'webNavigation', 'webNavigation', extensionInfo)
+  injectAPIObject(toInjectOver, 'privacy', 'privacy', extensionInfo)
 
   if (isContextIsolated) {
     contextBridge.exposeInMainWorld(API_NAME, rawAPI)
@@ -132,7 +156,15 @@ function hasPermission (permission, manifest) {
 
 async function injectAPIObject (rawAPI, type, permission, extensionInfo) {
   for (const [name, apiKind] of Object.entries(spec[type])) {
-    if (apiKind === FUNCTION) {
+    if (typeof apiKind === 'object') {
+      for (const [subName, subKind] of Object.entries(apiKind)) {
+        if (subKind === SETTING) {
+          injectProxy([type, name, subName, 'get'])
+          injectProxy([type, name, subName, 'set'])
+          injectProxy([type, name, subName, 'clear'])
+        }
+      }
+    } else if (apiKind === FUNCTION) {
       injectFunctionAPI(rawAPI, type, name, permission, extensionInfo)
     } else if (apiKind === EVENT) {
       injectListenerAPI(rawAPI, type, name, permission, extensionInfo)

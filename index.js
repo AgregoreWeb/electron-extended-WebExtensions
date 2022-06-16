@@ -123,6 +123,12 @@ class WebNavigation extends EventEmtiter {
     return () => this.removeListener('onErrorOccured', handler)
   }
 
+  async onCreatedNavigationTarget ({ extensionId } = {}, handler, filter = {}) {
+    // TODO: Filter by URLs
+    this.on('onCreatedNavigationTarget', handler)
+    return () => this.removeListener('onCreatedNavigationTarget', handler)
+  }
+
   async dispatchOnBeforeNavigate (webContents, event, { url }) {
     const frame = this.mainFrameToFrameData(webContents.mainFrame)
     const tabId = webContents.id
@@ -162,6 +168,30 @@ class WebNavigation extends EventEmtiter {
     const error = `${code}: ${description}`
     const details = { ...frame, url, tabId, timeStamp, error }
     this.emit('onErrorOccured', details)
+  }
+
+  async dispatchOnCreatedNavigationTarget (webContents) {
+    const parent = webContents.hostWebContents
+    const tabId = webContents.id
+    const timeStamp = Date.now()
+    const url = webContents.getURL()
+    let sourceFrameId = webContents.mainFrame.routingId
+    let sourceTabId = webContents.id
+
+    if (parent && webContents.id !== parent.id) {
+      sourceFrameId = parent.mainFrame.routingId
+      sourceTabId = parent.id
+    }
+
+    const details = {
+      sourceFrameId,
+      sourceTabId,
+      tabId,
+      timeStamp,
+      url
+    }
+
+    this.emit('onCreatedNavigationTarget', details)
   }
 }
 
@@ -752,6 +782,7 @@ class Tabs extends EventEmtiter {
   async dispatchOnActivated ({ id: tabId }) {
     this.lastFocused = tabId
     this.emit('onActivated', { tabId })
+    this.emit('onFocusChanged', { windowId: tabId })
   }
 
   async dispatchOnCreated (webContents) {
@@ -807,6 +838,7 @@ class ExtendedExtensions {
     this.webNavigation = new WebNavigation(this)
 
     this.attachAPI(this.tabs, 'tabs')
+    this.attachAPI(this.tabs, 'windows')
     this.attachAPI(this.debugger, 'debugger')
     this.attachAPI(this.browserActions, 'browserAction')
     this.attachAPI(this.contextMenus, 'contextMenus')
@@ -891,6 +923,8 @@ class ExtendedExtensions {
         e.reply(event, extensionId, listenerId, ...args)
       }
 
+      if (!implementation[name]) throw new TypeError(`${type}.${name} is not defined`)
+
       const removeListener = await implementation[name]({ extensionId, sender }, handler)
       listeners.set(key, cleanup)
 
@@ -938,6 +972,7 @@ class ExtendedExtensions {
       const { sender } = e
       // Only respond to sessions we're listening on
       if (sender.session !== this.session) return
+      if (!implementation[name]) throw new TypeError(`${type}.${name} is not defined`)
       return implementation[name]({ extensionId, sender }, ...args)
     }
     // TODO: Register handlers globally and have extensions instances attach/detach from there

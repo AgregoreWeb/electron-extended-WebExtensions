@@ -18,7 +18,7 @@ const exportsPattern = /exports\..*/g
 const processedSpec = specRaw.replace(exportsPattern, '')
 
 // Update this if new exports get added to the file
-const injectionPoint = 'const { FUNCTION, EVENT, makeEvent, spec } = require(\'./apiSpecs\')'
+const injectionPoint = 'const { FUNCTION, EVENT, SETTING, makeEvent, spec } = require(\'./apiSpecs\')'
 const preloadsFinal = preloadsRaw.replace(injectionPoint, processedSpec)
 
 const preloadsFile = path.join(__dirname, 'preloads.js')

@@ -6,7 +6,7 @@ const FAKE_API_NAME = `___${API_NAME}`
 Injected from apiSpecs.js
 */
 
-const { FUNCTION, EVENT, makeEvent, spec } = require('./apiSpecs')
+const { FUNCTION, EVENT, SETTING, makeEvent, spec } = require('./apiSpecs')
 
 /*
 -----------------------------
@@ -33,10 +33,12 @@ async function run () {
   const toInjectOver = isContextIsolated ? rawAPI : extensionInfo.chrome
 
   injectAPIObject(toInjectOver, 'tabs', null, extensionInfo)
+  injectAPIObject(toInjectOver, 'windows', null, extensionInfo)
   injectAPIObject(toInjectOver, 'debugger', 'debugger', extensionInfo)
   injectAPIObject(toInjectOver, 'browserAction', null, extensionInfo)
   injectAPIObject(toInjectOver, 'contextMenus', 'contextMenus', extensionInfo)
   injectAPIObject(toInjectOver, 'webNavigation', 'webNavigation', extensionInfo)
+  injectAPIObject(toInjectOver, 'privacy', 'privacy', extensionInfo)
 
   if (isContextIsolated) {
     contextBridge.exposeInMainWorld(API_NAME, rawAPI)
@@ -55,7 +57,15 @@ function hasPermission (permission, manifest) {
 
 async function injectAPIObject (rawAPI, type, permission, extensionInfo) {
   for (const [name, apiKind] of Object.entries(spec[type])) {
-    if (apiKind === FUNCTION) {
+    if (typeof apiKind === 'object') {
+      for (const [subName, subKind] of Object.entries(apiKind)) {
+        if (subKind === SETTING) {
+          injectProxy([type, name, subName, 'get'])
+          injectProxy([type, name, subName, 'set'])
+          injectProxy([type, name, subName, 'clear'])
+        }
+      }
+    } else if (apiKind === FUNCTION) {
       injectFunctionAPI(rawAPI, type, name, permission, extensionInfo)
     } else if (apiKind === EVENT) {
       injectListenerAPI(rawAPI, type, name, permission, extensionInfo)

@@ -1,5 +1,6 @@
 const FUNCTION = 'function'
 const EVENT = 'event'
+const SETTING = 'setting'
 
 const spec = {
   tabs: {
@@ -13,6 +14,17 @@ const spec = {
     executeScript: FUNCTION,
 
     onActivated: EVENT,
+    onCreated: EVENT,
+    onUpdated: EVENT,
+    onRemoved: EVENT
+  },
+  windows: {
+    create: FUNCTION,
+    get: FUNCTION,
+    update: FUNCTION,
+    remove: FUNCTION,
+
+    onFocusChanged: EVENT,
     onCreated: EVENT,
     onUpdated: EVENT,
     onRemoved: EVENT
@@ -63,11 +75,21 @@ const spec = {
     getFrame: FUNCTION,
     getAllFrames: FUNCTION,
 
+    onCreatedNavigationTarget: EVENT,
     onBeforeNavigate: EVENT,
     onCommitted: EVENT,
     onDOMContentLoaded: EVENT,
     onCompleted: EVENT,
     onErrorOccured: EVENT
+  },
+  privacy: {
+    network: {
+      networkPredictionEnabled: SETTING,
+      webRTCIPHandlingPolicy: SETTING
+    },
+    websites: {
+      hyperlinkAuditingEnabled: SETTING
+    }
   }
 }
 
