@@ -1,6 +1,6 @@
 {
   "name": "electron-extended-webextensions",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Extend the built-in functionality of Electron Web Extensions with additional features commonly used by browsers.",
   "main": "index.js",
   "scripts": {
