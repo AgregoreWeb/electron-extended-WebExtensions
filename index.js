@@ -130,68 +130,92 @@ class WebNavigation extends EventEmtiter {
   }
 
   async dispatchOnBeforeNavigate (webContents, event, { url }) {
-    const frame = this.mainFrameToFrameData(webContents.mainFrame)
-    const tabId = webContents.id
-    const timeStamp = Date.now()
-    const details = { ...frame, url, tabId, timeStamp }
-    this.emit('onBeforeNavigate', details)
+    try {
+      const frame = this.mainFrameToFrameData(webContents.mainFrame)
+      const tabId = webContents.id
+      const timeStamp = Date.now()
+      const details = { ...frame, url, tabId, timeStamp }
+      this.emit('onBeforeNavigate', details)
+    } catch {
+      // it was not fate
+    }
   }
 
   async dispatchOnCommitted (webContents, event, { url, frameRoutingId: frameId }) {
-    const tabId = webContents.id
-    const frame = await this.getFrame(null, { tabId, frameId })
-    const timeStamp = Date.now()
-    const details = { ...frame, url, tabId, timeStamp }
-    this.emit('onCommitted', details)
+    try {
+      const tabId = webContents.id
+      const frame = await this.getFrame(null, { tabId, frameId })
+      const timeStamp = Date.now()
+      const details = { ...frame, url, tabId, timeStamp }
+      this.emit('onCommitted', details)
+    } catch {
+      // it was not fate
+    }
   }
 
   async dispatchOnDOMContentLoaded (webContents, event, { frameRoutingId: frameId }) {
-    const tabId = webContents.id
-    const frame = await this.getFrame(null, { tabId, frameId })
-    const timeStamp = Date.now()
-    const details = { ...frame, tabId, timeStamp }
-    this.emit('onDOMContentLoaded', details)
+    try {
+      const tabId = webContents.id
+      const frame = await this.getFrame(null, { tabId, frameId })
+      const timeStamp = Date.now()
+      const details = { ...frame, tabId, timeStamp }
+      this.emit('onDOMContentLoaded', details)
+    } catch {
+      // it was not fate
+    }
   }
 
   async dispatchOnCompleted (webContents, event, { frameRoutingId: frameId }) {
-    const tabId = webContents.id
-    const frame = await this.getFrame(null, { tabId, frameId })
-    const timeStamp = Date.now()
-    const details = { ...frame, tabId, timeStamp }
-    this.emit('onCompleted', details)
+    try {
+      const tabId = webContents.id
+      const frame = await this.getFrame(null, { tabId, frameId })
+      const timeStamp = Date.now()
+      const details = { ...frame, tabId, timeStamp }
+      this.emit('onCompleted', details)
+    } catch {
+      // it was not fate
+    }
   }
 
   async dispatchOnErrorOccured (webContents, event, { url, frameRoutingId: frameId }, { code, description }) {
-    const tabId = webContents.id
-    const frame = await this.getFrame(null, { tabId, frameId })
-    const timeStamp = Date.now()
-    const error = `${code}: ${description}`
-    const details = { ...frame, url, tabId, timeStamp, error }
-    this.emit('onErrorOccured', details)
+    try {
+      const tabId = webContents.id
+      const frame = await this.getFrame(null, { tabId, frameId })
+      const timeStamp = Date.now()
+      const error = `${code}: ${description}`
+      const details = { ...frame, url, tabId, timeStamp, error }
+      this.emit('onErrorOccured', details)
+    } catch {
+      // it was not fate
+    }
   }
 
   async dispatchOnCreatedNavigationTarget (webContents) {
-    const parent = webContents.hostWebContents
-    const tabId = webContents.id
-    const timeStamp = Date.now()
-    const url = webContents.getURL()
-    let sourceFrameId = webContents.mainFrame.routingId
-    let sourceTabId = webContents.id
+    try {
+      const parent = webContents.hostWebContents
+      const tabId = webContents.id
+      const timeStamp = Date.now()
+      const url = webContents.getURL()
+      let sourceFrameId = webContents.mainFrame.routingId
+      let sourceTabId = webContents.id
 
-    if (parent && webContents.id !== parent.id) {
-      sourceFrameId = parent.mainFrame.routingId
-      sourceTabId = parent.id
+      if (parent && webContents.id !== parent.id) {
+        sourceFrameId = parent.mainFrame.routingId
+        sourceTabId = parent.id
+      }
+
+      const details = {
+        sourceFrameId,
+        sourceTabId,
+        tabId,
+        timeStamp,
+        url
+      }
+
+      this.emit('onCreatedNavigationTarget', details)
+    } catch {
+      // it was not fate
     }
-
-    const details = {
-      sourceFrameId,
-      sourceTabId,
-      tabId,
-      timeStamp,
-      url
-    }
-
-    this.emit('onCreatedNavigationTarget', details)
   }
 }
 
